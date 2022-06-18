@@ -111,12 +111,11 @@ this_mult.poles             = poles;
 
 % Define basis function and filter
 poles_length = length(this_mult.poles);
-poles_cell = reshape(num2cell(this_mult.poles), poles_length, 1);
-poles_cell{end + 1, 1} = [];
-basis = zpk(cell(poles_length + 1, 1),...
-            poles_cell,...
-            ones(poles_length + 1, 1),...
-            timestep);
+chn_len = length(this_mult.chan_in{1});
+pc_len = poles_length*chn_len;
+z = tf('z');
+Ay = diag(repelem(poles,chn_len));
+basis = [inv( z*eye(pc_len)-Ay )*repmat(eye(chn_len),poles_length,1); eye(chn_len)] ;
 basis_lft = toLft(ss(basis));
 rows = eye(this_mult.dim_in(1));
 chan_select = toLft(rows(this_mult.chan_in{1}, :));
@@ -131,7 +130,7 @@ filter.d = filter_lft.d;
 decision_vars = cell(1, poles_length + 1);
 decision_constraint = 0;
 for i = 1:(poles_length + 1)
-    x = sdpvar(1);
+    x = sdpvar(chn_len,chn_len,'full'); 
     omega = this_mult.omega;
     if i == 1
         term = omega;
@@ -143,14 +142,14 @@ for i = 1:(poles_length + 1)
             term = -atan(-pole * sin(omega) / (1 - pole * cos(omega))) / pole;
         end
     end
-    decision_constraint = decision_constraint + term * x;
+    decision_constraint = decision_constraint + term * trace(x); 
     decision_vars{i} = x;
 end
 constraint = (decision_constraint >= 0):['Banded White Multiplier, ',...
                                          this_mult.name,...
                                          ', integral(xi, omega) >= 0'];         %#ok<BDSCA>
-q = [zeros(poles_length),           vertcat(decision_vars{2:end});
-     horzcat(decision_vars{2:end}), 2 * decision_vars{1}];
+q = [zeros(pc_len),  horzcat(decision_vars{2:end})';
+     horzcat(decision_vars{2:end}), decision_vars{1}+decision_vars{1}'];
 quad.q = repmat({q}, 1, sum(this_mult.horizon_period));
 
 % Collect into multiplier
@@ -164,3 +163,4 @@ end
 
 %%  CHANGELOG
 % Nov. 23, 2021: Added after v0.6.0 - Micah Fry (micah.fry@ll.mit.edu)
+% Jun, 18, 2022: - Sourav Sinha (srvsinha@vt.edu)
