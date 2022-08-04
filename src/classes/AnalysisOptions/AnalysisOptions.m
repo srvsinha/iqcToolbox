@@ -6,7 +6,10 @@ classdef AnalysisOptions
 %
 %   properties:
 %     yalmip_settings : struct :: struct for defining yalmip sdpsettings()
-%     performance : double/empty :: the LFT's worst-case performance.  If
+%     state_amplification: double/empty :: LFT's worst-case state amplification
+%                                   If double, solve a feasibility problem. If
+%                                   empty, solve an optimization problem.
+%     gain : double/empty :: the LFT's worst-case disturbance gain.  If
 %                                   double, solve a feasibility problem. If
 %                                   empty, solve an optimization problem.
 %     lmi_shift : double :: shift parameter to express (>,<) constraints from (>=,=<)
@@ -43,6 +46,8 @@ properties
     init_cond_states
     p0
     exponential
+    state_amplification
+    gain
 end
 
 methods
@@ -114,7 +119,15 @@ methods
     addParameter(input_parser,...
                  'p0',...
                  [],...  % [] corresponds to allowing the solver find any suitable solution.
-                 @(in) validateattributes(in, {'numeric'}, {'finite'}))                                 
+                 @(in) validateattributes(in, {'numeric'}, {'finite'}))             
+    addParameter(input_parser,...
+                 'state_amplification',...
+                 [],...  % [] corresponds to allowing the solver find any suitable solution.
+                 @(in) validateattributes(in, {'double'}, {'positive'}))  
+    addParameter(input_parser,...
+                 'gain',...
+                 [],...  % [] corresponds to allowing the solver find any suitable solution.
+                 @(in) validateattributes(in, {'double'}, {'positive'}))   
     % Other potential inputs: [matrix] which is used as the first lyapunov matrix in an attempt to satisfy the IQC KYP LMIs
     addParameter(input_parser,...
                  'exponential',...
@@ -134,6 +147,8 @@ methods
     this_options.init_cond_ellipse = input_parser.Results.init_cond_ellipse;
     this_options.init_cond_states  = input_parser.Results.init_cond_states;
     this_options.p0                = input_parser.Results.p0;
+    this_options.state_amplification = input_parser.Results.state_amplification;
+    this_options.gain              = input_parser.Results.gain;
     this_options.exponential       = input_parser.Results.exponential;    
     end
 

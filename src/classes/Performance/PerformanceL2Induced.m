@@ -205,9 +205,22 @@ addParameter(input_parser,... % This parameter is not used. Only defined for com
              'discrete',...
              true,...
              @(disc) validateattributes(disc, {'logical'}, {'nonempty'}))
-            
+addParameter(input_parser,...
+                 'gain',...
+                 [],...  % [] corresponds to allowing the solver find any suitable solution.
+                 @(in) validateattributes(in, {'double'}, {'positive'}))  
+           
 parse(input_parser, performance, varargin{:})
 performance = input_parser.Results.performance;
+if ~isempty(performance.gain) 
+    if ~isempty(input_parser.Results.gain) 
+        assert(performance.gain == input_parser.Results.gain,...
+            ['Different values of worst-case gain are provided in ',...
+        'LFT formation and in AnalysisOptions']);
+    end
+else
+    performance.gain = input_parser.Results.gain;
+end
 dim_out_lft = input_parser.Results.dim_out_lft;
 dim_in_lft  = input_parser.Results.dim_in_lft;
 objective_scaling = input_parser.Results.objective_scaling;

@@ -218,7 +218,8 @@ for i=1:num_performances
             performanceToMultiplier(perf.performances{i},...
                                     'discrete', is_discrete,...
                                     'dim_out_lft', size(lft_analyzed, 1),...
-                                    'dim_in_lft', size(lft_analyzed, 2));
+                                    'dim_in_lft', size(lft_analyzed, 2),...
+                                    'gain', options.gain);
     end
 end
 
@@ -316,12 +317,10 @@ primal_satisfied = (failed_yalmip == system_kyp_failed_yalmip)...
                    && (system_kyp_failed_yalmip == system_kyp_neg_def);
 
 valid = all(all(~isnan(primal_residual))) && ...
-        (all(primal_residual >= 0) || primal_satisfied);        
-if valid
-    performance = sqrt(cellfun(@double, {mults_perf.objective}));
-else
-    performance = inf;
-end
+        (all(primal_residual >= 0) || primal_satisfied);
+    
+performance = sqrt(cellfun(@double, {mults_perf.objective}));
+
 ellipse = double(ellipse);
 full_ellipse = nan(length(options.init_cond_states));
 full_ellipse(options.init_cond_states, options.init_cond_states) = ellipse;
@@ -338,6 +337,7 @@ result.kyp_variables           = kyp_variables;
 result.exponential             = exponential;
 result.debug.constraints       = constraints;
 result.debug.yalmip_report     = yalmip_report;
+result.debug.constraints_residual = primal_residual;
 result.valid                   = valid;
 end
 
@@ -544,8 +544,13 @@ elseif ~isempty(filt_lft_eye.timestep) && any(filt_lft_eye.timestep)
         kyp_constraints = kyp_constraints + (ellipse_eigenvalues >= 0);
         kyp_constraints = kyp_constraints + (p0_state <= ellipse);
     else
-        objective_state = sdpvar(1);
-        state_amplification = sqrt(objective_state);
+        if ~isempty(options.state_amplification)
+            state_amplification = options.state_amplification;
+            objective_state = state_amplification^2;            
+        else
+            objective_state = sdpvar(1);
+            state_amplification = sqrt(objective_state);         
+        end
         mat_shift = lmi_shift * eye(size(ellipse, 2));
         ic = (p0_state <= objective_state * ellipse - mat_shift):...
                                             'Initial Condition LMI';            %#ok<BDSCA>
